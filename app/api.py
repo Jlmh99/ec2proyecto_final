@@ -85,7 +85,7 @@ def login():
     usuario = Usuario.query.filter_by(email=email).first()
     if usuario is None or not usuario.check_password(str(c.get("password", ""))):
         current_app.logger.warning("login_fallido", extra={"email": email})
-        return error("Credenciales incorrectas", 401)
+        return error("Credenciales invalidas", 401)
     current_app.logger.info("login_exitoso", extra={"usuario_id": usuario.id})
     return respuesta({"token": crear_token(usuario), "usuario": usuario.to_dict()})
 
