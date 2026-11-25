@@ -164,10 +164,12 @@ def _metricas_del_servidor() -> None:
             sensores = psutil.sensors_temperatures()
         except (AttributeError, OSError):
             sensores = {}
-        lecturas = [Observation(s.current, {"sensor": nombre}) for nombre, lista in sensores.items() for s in lista]
+        # Las VM de EC2 pueden reportar valores falsos (p. ej. -273.1 C): solo se aceptan lecturas fisicamente posibles.
+        lecturas = [Observation(s.current, {"sensor": nombre}) for nombre, lista in sensores.items()
+                    for s in lista if -40 <= s.current <= 150]
         if not lecturas and not _aviso_temperatura["emitido"]:
             _aviso_temperatura["emitido"] = True
-            log.warning("temperatura_no_disponible", extra={"motivo": "la instancia no expone sensores"})
+            log.warning("temperatura_no_disponible", extra={"motivo": "la instancia no expone sensores validos"})
         return lecturas
 
     medidor.create_observable_gauge("system_temperature_celsius", callbacks=[temperatura], unit="Cel",
