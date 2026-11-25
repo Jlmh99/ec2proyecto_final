@@ -1,0 +1,43 @@
+# Despliegue en la EC2: la aplicacion y OpenObserve en la misma instancia.
+# La app usa network_mode: host para que las metricas de red sean las de la instancia (ens5) y no las del contenedor.
+# Las credenciales se leen del archivo .env del servidor (no se suben al repositorio).
+services:
+  openobserve:
+    image: openobserve/openobserve:latest
+    container_name: openobserve
+    restart: unless-stopped
+    ports:
+      - "5080:5080"
+    environment:
+      ZO_ROOT_USER_EMAIL: ${ZO_ROOT_USER_EMAIL}
+      ZO_ROOT_USER_PASSWORD: ${ZO_ROOT_USER_PASSWORD}
+      ZO_DATA_DIR: /data
+      ZO_COMPACT_DATA_RETENTION_DAYS: "7"
+    volumes:
+      - oo-data:/data
+    mem_limit: 500m
+
+  app:
+    image: ${APP_IMAGE:-jlmh99/proyecto-usuarios:latest}
+    container_name: app-usuarios
+    restart: unless-stopped
+    network_mode: host
+    depends_on:
+      - openobserve
+    environment:
+      PORT: "8080"
+      SECRET_KEY: ${SECRET_KEY}
+      DATABASE_URL: sqlite:////app/instance/app.db
+      OPENOBSERVE_URL: http://localhost:5080
+      OPENOBSERVE_ORG: default
+      OPENOBSERVE_USER: ${ZO_ROOT_USER_EMAIL}
+      OPENOBSERVE_PASSWORD: ${ZO_ROOT_USER_PASSWORD}
+      SERVICE_NAME: gestion-usuarios
+      DEPLOY_ENV: produccion
+    volumes:
+      - app-data:/app/instance
+    mem_limit: 250m
+
+volumes:
+  oo-data:
+  app-data:

@@ -41,4 +41,7 @@ def create_app(test_config=None):
 
     with app.app_context():
         db.create_all()
+
+    from .observabilidad import configurar_observabilidad
+    configurar_observabilidad(app)
     return app
