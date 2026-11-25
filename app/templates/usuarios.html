@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block titulo %}Usuarios{% endblock %}
+{% block contenido %}
+<section class="tarjeta">
+  <h1 id="titulo">Usuarios</h1>
+  <p id="sesion" class="sesion"></p>
+  <table id="tabla-usuarios">
+    <thead><tr><th>ID</th><th>Nombre</th><th>Correo</th><th>Acciones</th></tr></thead>
+    <tbody></tbody>
+  </table>
+  <p id="vacio" class="mensaje" hidden>No hay usuarios.</p>
+</section>
+<section class="tarjeta">
+  <h2 id="titulo-form">Nuevo usuario</h2>
+  <form id="form-usuario" novalidate>
+    <input id="u-id" type="hidden">
+    <label for="u-nombre">Nombre</label>
+    <input id="u-nombre" type="text">
+    <label for="u-email">Correo</label>
+    <input id="u-email" type="email">
+    <label for="u-password">Contraseña <span id="ayuda-pass">(mínimo 8 caracteres)</span></label>
+    <input id="u-password" type="password" autocomplete="new-password">
+    <div class="fila">
+      <button id="btn-guardar" type="submit">Guardar</button>
+      <button id="btn-cancelar" type="button" class="secundario">Cancelar</button>
+    </div>
+  </form>
+  <p id="mensaje" class="mensaje" role="alert"></p>
+</section>
+{% endblock %}
+{% block scripts %}
+<script>
+if (!obtenerToken()) { window.location.href = "/login"; }
+
+let miId = null;
+
+async function cargar() {
+  const r = await peticion("/api/usuarios", "GET");
+  if (r.status === 401) { cerrarSesion(); return; }
+  const cuerpo = document.querySelector("#tabla-usuarios tbody");
+  cuerpo.innerHTML = "";
+  const lista = r.cuerpo.data || [];
+  document.getElementById("vacio").hidden = lista.length > 0;
+  for (const u of lista) {
+    const fila = document.createElement("tr");
+    fila.dataset.id = u.id;
+    for (const texto of [u.id, u.nombre, u.email]) {
+      const td = document.createElement("td");
+      td.textContent = texto;
+      fila.appendChild(td);
+    }
+    const acciones = document.createElement("td");
+    const editar = document.createElement("button");
+    editar.textContent = "Editar";
+    editar.className = "btn-editar secundario";
+    editar.addEventListener("click", () => editarUsuario(u));
+    const borrar = document.createElement("button");
+    borrar.textContent = "Eliminar";
+    borrar.className = "btn-eliminar peligro";
+    borrar.addEventListener("click", () => eliminarUsuario(u));
+    acciones.append(editar, borrar);
+    fila.appendChild(acciones);
+    cuerpo.appendChild(fila);
+  }
+}
+
+function limpiarFormulario() {
+  document.getElementById("form-usuario").reset();
+  document.getElementById("u-id").value = "";
+  document.getElementById("titulo-form").textContent = "Nuevo usuario";
+  document.getElementById("ayuda-pass").textContent = "(mínimo 8 caracteres)";
+}
+
+function editarUsuario(u) {
+  document.getElementById("u-id").value = u.id;
+  document.getElementById("u-nombre").value = u.nombre;
+  document.getElementById("u-email").value = u.email;
+  document.getElementById("u-password").value = "";
+  document.getElementById("titulo-form").textContent = "Editar usuario";
+  document.getElementById("ayuda-pass").textContent = "(déjala vacía para no cambiarla)";
+  document.getElementById("u-nombre").focus();
+}
+
+async function eliminarUsuario(u) {
+  const r = await peticion("/api/usuarios/" + u.id, "DELETE");
+  if (r.ok) { mostrarMensaje("Usuario eliminado", false); await cargar(); }
+  else { mostrarMensaje(r.cuerpo.data.error, true); }
+}
+
+document.getElementById("form-usuario").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const id = document.getElementById("u-id").value;
+  const datos = {
+    nombre: document.getElementById("u-nombre").value,
+    email: document.getElementById("u-email").value,
+  };
+  const pass = document.getElementById("u-password").value;
+  if (pass || !id) datos.password = pass;
+  const r = id ? await peticion("/api/usuarios/" + id, "PUT", datos) : await peticion("/api/usuarios", "POST", datos);
+  if (r.ok) {
+    mostrarMensaje(id ? "Usuario actualizado" : "Usuario creado", false);
+    limpiarFormulario();
+    await cargar();
+  } else {
+    mostrarMensaje(r.cuerpo.data.error, true);
+  }
+});
+document.getElementById("btn-cancelar").addEventListener("click", limpiarFormulario);
+
+(async () => {
+  const yo = obtenerUsuario();
+  if (yo) { document.getElementById("sesion").textContent = "Sesión iniciada como " + yo.nombre + " (" + yo.email + ")"; }
+  if (obtenerToken()) await cargar();
+})();
+</script>
+{% endblock %}

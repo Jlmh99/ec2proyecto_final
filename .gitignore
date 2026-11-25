@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+instance/
+.coverage
+htmlcov/
+reportes/
+evidencias/
+.env
+*.pem
